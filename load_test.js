@@ -1,29 +1,41 @@
-const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const { Worker, isMainThread, workerData } = require('worker_threads');
 const axios = require('axios');
 
-// Function for making load requests
-async function sendRequest(url, requestCount) {
-  try {
-    for (let i = 0; i < requestCount; i++) {
-      await axios.get(url);
-      console.log(`Request ${i + 1} sent successfully.`);
-    }
-  } catch (error) {
-    console.error("Request failed:", error.message);
-  }
-}
-
 if (isMainThread) {
-  const threads = 4; // Number of threads to spawn
-  const requestsPerThread = 100; // Number of requests per thread
-  const url = "http://your-server-url.com/api-endpoint"; // Replace with your Next.js server URL
+  const threads = 4; // Number of threads
+  const requestsPerSecond = 100; // Total desired RPS across all threads
+  const url = "https://www.erzincanilahiyatdernegi.org/"; // Replace with your server's endpoint
 
-  console.log(`Spawning ${threads} threads...`);
-
+  const requestsPerThread = Math.floor(requestsPerSecond / threads);
+  
+  console.log(`Starting load test with ${threads} threads and ${requestsPerSecond} RPS`);
+  
   for (let i = 0; i < threads; i++) {
-    new Worker(__filename, { workerData: { url, requestsPerThread } });
+    new Worker(__filename, {
+      workerData: { url, requestsPerSecond: requestsPerThread },
+    });
   }
 } else {
-  sendRequest(workerData.url, workerData.requestsPerThread)
-    .then(() => parentPort.postMessage("Thread completed."));
+  const { url, requestsPerSecond } = workerData;
+  let requestCount = 0;
+
+  const sendRequest = async () => {
+    try {
+      await axios.get(url);
+      requestCount++;
+    } catch (error) {
+      console.error("Request failed:", error.message);
+    }
+  };
+
+  setInterval(() => {
+    console.log(`Thread sent ${requestCount} requests`);
+    requestCount = 0;
+  }, 1000);
+
+  setInterval(() => {
+    for (let i = 0; i < requestsPerSecond; i++) {
+      sendRequest();
+    }
+  }, 1000);
 }

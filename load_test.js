@@ -33,8 +33,9 @@ if (isMainThread) {
 
   const sendRequest = async () => {
     try {
-      await axios.get(url);
+      const res = await axios.get(url);
       requestCount++;
+      console.log(res.status);
     } catch (error) {
       console.error("Request failed:", error.message);
     }
